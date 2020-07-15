@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace属性：划分sql语句空间 -->
+<mapper namespace="com.igeek.homework.mapper.UserMapper">
+
+    <!-- sql片段：提供动态sql的利用率，不使用where标签目的是使sql片段重用率高些 -->
+    <sql id="user_query">
+        <if test="userCustom != null">
+            <if test="userCustom.sex!=null and userCustom.sex!=''">
+                and sex = #{userCustom.sex}
+            </if>
+            <if test="userCustom.username!=null and userCustom.username!=''">
+                and username like concat('%',#{userCustom.username},'%')
+            </if>
+        </if>
+    </sql>
+
+    <sql id="user_query_id">
+        <if test="ids!=null">
+            <foreach collection="ids" item="id" open="and id in (" close=")" separator=",">
+                #{id}
+            </foreach>
+        </if>
+    </sql>
+
+    <update id="update" parameterType="User">
+        update user set username = #{username},birthday = #{birthday},sex = #{sex},address = #{address} where id = #{id}
+    </update>
+
+    <delete id="delete" parameterType="java.lang.Integer">
+        delete from user where id = #{id}
+    </delete>
+
+    <!-- 3.需求：通过用户性别和姓名查询用户列表，且id值是15或20或25  PS：不允许性别或者姓名为null或者空串 -->
+    <select id="selectByNameAndSex" parameterType="UserQueryVO" resultType="UserCustom">
+        select * from user
+        <!-- 通过where标签自动去除第一个and -->
+        <where>
+            <!-- 引入多个sql片段-->
+            <include refid="com.igeek.ch04.sql.UserMapper.user_query"></include>
+            <include refid="user_query_id"></include>
+        </where>
+    </select>
+
+    <resultMap id="map" type="OrdersCustom">
+        <!-- 订单信息 -->
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="createtime" property="createtime" />
+        <result column="number" property="number" />
+        <result column="note" property="note" />
+
+        <!--
+            一对多关联   订单详情信息
+            通过collection来完成一对多关联
+            property属性：指定的type类型中，一对多关联的属性名
+            ofType属性：指定的type类型中，一对多关联的属性的集合的泛型
+        -->
+        <collection property="detailList" ofType="OrderdetailCustom">
+            <id column="did" property="id" />
+            <result column="id" property="ordersId" />
+            <result column="items_id" property="itemsId" />
+            <result column="items_num" property="itemsNum" />
+        </collection>
+
+    </resultMap>
+
+    <!-- 查询订单及订单明细的信息 -->
+    <select id="find" resultMap="map">
+        select o.* , d.id did , d.items_id ,d.items_num
+        from orders o , orderdetail d
+        where o.id = d.orders_id
+    </select>
+
+
+    <!-- resultMap 完成高级映射关系，将属性一一映射 -->
+    <resultMap id="map1" type="OrdersCustom">
+        <!--
+            订单信息
+            id 与表中的主键对应     result 与表中的普通字段对应
+            column属性 对应的是表中的字段名
+            property属性 对应的是type指定的类中的属性名
+        -->
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="createtime" property="createtime" />
+        <result column="number" property="number" />
+        <result column="note" property="note" />
+
+        <!--
+            一对一关联的用户信息
+            association完成一对一映射：
+            property属性：一对一关联的属性名
+            javaType属性：一对一关联的属性的类型
+        -->
+        <association property="userCustom" javaType="UserCustom">
+            <id column="user_id" property="id" />
+            <result column="username" property="username" />
+            <result column="sex" property="sex" />
+            <result column="birthday" property="birthday" />
+            <result column="address" property="address" />
+        </association>
+
+    </resultMap>
+
+
+    <!-- 查询订单信息，关联查询创建订单的用户信息 -->
+    <select id="find1" resultMap="map1">
+        select o.* , u.username , u.birthday , u.sex , u.address
+        from orders o , user u
+        where o.user_id = u.id
+    </select>
+
+
+</mapper>
